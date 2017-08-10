@@ -1,0 +1,77 @@
+#include "gvbridge.h"
+
+GVBridge::GVBridge()
+{
+
+}
+
+QByteArray GVBridge::Compile(const GraphData &graph)
+{
+    QString output;
+    QByteArray bytes;
+
+    QTextStream stream(&bytes, QIODevice::ReadWrite);
+
+    output.append("graph {\n");
+    output.append("\trankdir=\"LR\"\n");
+
+    for(int i = 1; i <= graph.getVertexCount(); i++)
+        output.append(QString("\tv%1\n").arg(QString::number(i)));
+
+    for(int i = 0; i < graph.getVertexCount(); i++)
+    {
+        for(int j = 0; j < graph.getVertexCount(); j++)
+        {
+            int weight = graph.get(i, j);
+
+            if(j >= i)
+            if(weight != -1)
+            {
+                output.append(QString("\tv%1 -- v%2\n").arg(QString::number(i + 1), QString::number(j + 1)));
+                output.append("\t[\n");
+                output.append(QString("\t\tlabel=%1\n").arg(QString::number(weight)));
+                output.append("\t]\n");
+            }
+        }
+    }
+
+    output.append("}\n");
+
+    stream << output;
+    stream.flush();
+
+    return bytes;
+}
+
+QString GVBridge::GetPath()
+{
+    QString path = QCoreApplication::applicationDirPath() + QDir::separator() + "graphviz"
+            + QDir::separator() + "bin" + QDir::separator() + "dot.exe";
+
+}
+
+bool GVBridge::isAvailable()
+{
+    return QFile(GetPath()).exists();
+}
+
+QPixmap GVBridge::GetImage(const QByteArray &request)
+{
+    QProcess proc;
+    proc.setProcessChannelMode(QProcess::MergedChannels);
+    proc.start(GetPath(), QStringList() << "-Tpng");
+    proc.waitForStarted();
+    proc.write(request);
+    proc.waitForBytesWritten();
+    proc.closeWriteChannel();
+
+    QByteArray imageBytes;
+    QPixmap pixmap;
+
+    while (proc.waitForReadyRead(-1))
+        imageBytes.append(proc.readAll());
+
+    pixmap.loadFromData(imageBytes);
+
+    return pixmap;
+}
